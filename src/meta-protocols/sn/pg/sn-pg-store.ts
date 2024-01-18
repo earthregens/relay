@@ -13,8 +13,8 @@ import {
   DbSnActivity,
   DbSnBalance,
   DbSnBalanceTypeId,
-  DbSnDeployEvent,
-  DbSnDeployInsert,
+  DbSnStakeEvent,
+  DbSnStakeInsert,
   DbSnEvent,
   DbSnEventOperation,
   DbSnHolder,
@@ -27,9 +27,8 @@ import {
 } from './types';
 
 import {
-  snDeploy,
-  snMint,
-  snTransfer,
+  snStake,
+  snUnstake,
   snFromInscriptionContent,
   isAddressSentAsFee,
 } from './helpers';
@@ -44,7 +43,7 @@ export class snPgStore extends BasePgStoreModule {
 
   /**
    * Perform a scan of all inscriptions stored in the DB divided by block in order to look for
-   * BRC-20 operations.
+   * sn operations.
    * @param startBlock - Start at block height
    * @param endBlock - End at block height
    */
@@ -81,14 +80,17 @@ export class snPgStore extends BasePgStoreModule {
         );
         if (sn) {
           switch (sn.op) {
-            case 'deploy':
-              await this.insertDeploy({ op: sn, location: write });
+            case 'stake':
+              await this.insertStake({ op: sn, location: write });
               break;
-            case 'mint':
-              await this.insertMint({ op: sn, location: write });
-              break;
-            case 'transfer':
+            case 'heart':
               await this.insertTransfer({ op: sn, location: write });
+              break;
+            case 'store':
+              await this.insertTransfer({ op: sn, location: write });
+              break;
+            case 'unstake':
+              await this.insertMint({ op: sn, location: write });
               break;
           }
         }
@@ -218,12 +220,12 @@ export class snPgStore extends BasePgStoreModule {
     });
   }
 
-  private async insertDeploy(deploy: {
-    op: snDeploy;
+  private async insertStake(deploy: {
+    op: snStake;
     location: DbSnLocation;
   }): Promise<void> {
     if (!deploy.location.inscription_id || isAddressSentAsFee(deploy.location.address)) return;
-    const insert: DbSnDeployInsert = {
+    const insert: DbSnStakeInsert = {
       inscription_id: deploy.location.inscription_id,
       block_height: deploy.location.block_height,
       tx_id: deploy.location.tx_id,
@@ -423,7 +425,7 @@ export class snPgStore extends BasePgStoreModule {
     for (const event of events) {
       switch (event.operation) {
         case 'deploy':
-          await this.rollBackDeploy(event);
+          await this.rollBackStake(event);
           break;
         case 'mint':
           await this.rollBackMint(event);
@@ -451,7 +453,7 @@ export class snPgStore extends BasePgStoreModule {
     }
   }
 
-  private async rollBackDeploy(activity: DbSnDeployEvent): Promise<void> {
+  private async rollBackStake(activity: DbSnStakeEvent): Promise<void> {
     // - tx_count is lost successfully, since the deploy will be deleted.
     await this.sql`
       WITH decrease_event_count AS (

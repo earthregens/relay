@@ -1,46 +1,31 @@
 import { Static, Type } from '@fastify/type-provider-typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import BigNumber from 'bignumber.js';
+import { NOSTR_MESSAGE } from './types';
 import { hexToBuffer } from '../../../api/util/helpers';
 import { DbInscriptionInsert } from '../../../pg/types';
 
-const snTickerSchema = Type.String({ minLength: 1 });
-const snNumberSchema = Type.RegEx(/^((\d+)|(\d*\.?\d+))$/);
+const snEventSchema = Type.RegEx(/^((\d+)|(\d*\.?\d+))$/);
 
-const snDeploySchema = Type.Object(
+const snEventSchema = Type.Object(
   {
     p: Type.Literal('sn'),
-    op: Type.Literal('stake'),
-    tick: snTickerSchema,
-    max: snNumberSchema,
-    lim: Type.Optional(snNumberSchema),
-    dec: Type.Optional(Type.RegEx(/^\d+$/)),
+    v: Type.Literal('1'),
+    e: snEventSchema
   },
   { additionalProperties: true }
 );
-export type snDeploy = Static<typeof snDeploySchema>;
+export type snStake = Static<typeof snStakeSchema>;
 
-const snMintSchema = Type.Object(
+const snUnstakeSchema = Type.Object(
   {
     p: Type.Literal('sn'),
-    op: Type.Literal('unstake'),
-    tick: snTickerSchema,
-    amt: snNumberSchema,
+    op: Type.Literal('burn'),
+    id: snIDSchema
   },
   { additionalProperties: true }
 );
-export type snMint = Static<typeof snMintSchema>;
-
-const snTransferSchema = Type.Object(
-  {
-    p: Type.Literal('sn'),
-    op: Type.Literal('transfer'),
-    tick: snTickerSchema,
-    amt: snNumberSchema,
-  },
-  { additionalProperties: true }
-);
-export type snTransfer = Static<typeof snTransferSchema>;
+export type snUnstake = Static<typeof snUnstakeSchema>;
 
 const snSchema = Type.Union([snDeploySchema, snMintSchema, snTransferSchema]);
 const snC = TypeCompiler.Compile(snSchema);
@@ -83,3 +68,19 @@ export function snFromInscriptionContent(content: string): sn | undefined {
 export function isAddressSentAsFee(address: string | null): boolean {
   return address === null || address.length === 0;
 }
+
+const formatEvent = (subscriptionId: string, event: object) =>
+  JSON.stringify([NOSTR_MESSAGE.EVENT, subscriptionId, event]);
+
+const formatEose = (subscriptionId: string) =>
+  JSON.stringify([NOSTR_MESSAGE.EOSE, subscriptionId]);
+
+const formatNotice = (message) => JSON.stringify([NOSTR_MESSAGE.NOTICE, message]);
+
+const formatOk = (eventId: String) =>
+  JSON.stringify([NOSTR_MESSAGE.OK, eventId, true, '']);
+
+const formatNotOk = (eventId: String, error: String) =>
+  JSON.stringify([NOSTR_MESSAGE.OK, eventId, false, error]);
+
+export { formatEvent, formatNotice, formatOk, formatNotOk, formatEose };

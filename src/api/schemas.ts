@@ -13,12 +13,12 @@ export const OpenApiSchemaOptions: SwaggerOptions = {
       version: SERVER_VERSION.tag,
     },
     externalDocs: {
-      url: 'https://github.com/hirosystems/ordinals-api',
+      url: 'https://github.com/social-network/earth-relay',
       description: 'Source Repository',
     },
     servers: [
       {
-        url: 'https://api.hiro.so/',
+        url: 'https://the.social.network/',
         description: 'mainnet',
       },
     ],

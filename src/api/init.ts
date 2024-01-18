@@ -3,8 +3,10 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { PINO_LOGGER_CONFIG, isProdEnv } from '@hirosystems/api-toolkit';
 import Fastify, { FastifyPluginAsync } from 'fastify';
 import FastifyMetrics, { IFastifyMetrics } from 'fastify-metrics';
+import fastifyWebsocket from '@fastify/websocket';
 import { Server } from 'http';
 import { PgStore } from '../pg/pg-store';
+import { SnRoutes } from '../meta-protocols/sn/api/sn';
 import { Brc20Routes } from '../meta-protocols/brc-20/api/brc20';
 import { InscriptionsRoutes } from './routes/inscriptions';
 import { SatRoutes } from './routes/sats';
@@ -21,6 +23,7 @@ export const Api: FastifyPluginAsync<
   await fastify.register(SatRoutes);
   await fastify.register(StatsRoutes);
   await fastify.register(Brc20Routes);
+  await fastify.register(SnRoutes);
 };
 
 export async function buildApiServer(args: { db: PgStore }) {
@@ -33,10 +36,12 @@ export async function buildApiServer(args: { db: PgStore }) {
   if (isProdEnv) {
     await fastify.register(FastifyMetrics, { endpoint: null });
   }
+  await fastify.register(fastifyWebsocket, {
+    options: { maxPayload: 1048576 } // TODO get from config
+  });
   await fastify.register(FastifyCors);
   await fastify.register(Api, { prefix: '/ordinals/v1' });
   await fastify.register(Api, { prefix: '/ordinals' });
-
   return fastify;
 }
 
